@@ -5,6 +5,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("multiplatform")
     id("org.jetbrains.compose")
+
+    // apply kotlinx serialization plugin
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.5.31"
 }
 
 group = "com.realityexpander"
@@ -27,6 +30,13 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+
+                implementation("io.ktor:ktor-client-core:1.6.8")
+                implementation("io.ktor:ktor-client-cio-jvm:1.6.8")
+                implementation("io.ktor:ktor-client-okhttp:1.6.8")
+                implementation("io.ktor:ktor-client-serialization:1.6.8")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-bom:1.2.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2")
             }
         }
         val jvmTest by getting
@@ -35,7 +45,7 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "MainKt"
+        mainClass = "app.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "StopwatchComposeDesktop"

@@ -1,3 +1,5 @@
+package app
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.desktop.ui.tooling.preview.Preview
@@ -19,25 +21,51 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyShortcut
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.*
+import app.data.User.User
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.features.json.*
+import io.ktor.client.features.json.serializer.*
+import io.ktor.client.request.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import java.awt.FileDialog
 import java.awt.Frame
+import java.awt.MenuShortcut
+import java.awt.event.KeyEvent
+import java.net.URL
 import javax.swing.WindowConstants
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
 
-@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalSerializationApi::class)
+private val jsonLenient = Json {
+    ignoreUnknownKeys = true
+    isLenient
+    prettyPrint = true
+    prettyPrintIndent = "  "
+}
+
+@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterialApi::class, ExperimentalSerializationApi::class,
+    ExperimentalComposeUiApi::class
+)
 @Composable
 @Preview
 fun App(context: FrameWindowScope) {
@@ -49,6 +77,8 @@ fun App(context: FrameWindowScope) {
 
     val state = MutableStateFlow(0)
     var isDialogOpen by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
 
     val infiniteTransition = rememberInfiniteTransition()
     val offset2 by infiniteTransition.animateFloat(
@@ -147,8 +177,14 @@ fun App(context: FrameWindowScope) {
                     newNum
                 }
             }
-            Item("Show Alert") {
+            Item(
+                "Show Alert",
+                shortcut = KeyShortcut(Key.S, meta = true)
+            ) {
                 isDialogOpen = true
+
+                // set the shortcut
+                context.window.menuBar.getMenu(0).getItem(3).shortcut = MenuShortcut(KeyEvent.VK_S)
             }
             Separator()
             Item("Quit") {
@@ -158,9 +194,11 @@ fun App(context: FrameWindowScope) {
         }
     }
 
-    MaterialTheme {
-        NightSkyCard()
+    if (true) {
+        MaterialTheme {
+            NightSkyCard()
 //        NightSkyCard2()
+        }
     }
 
 
@@ -230,6 +268,12 @@ fun App(context: FrameWindowScope) {
                         },
                         confirmButton = {
                             Button(onClick = {
+                                // Make a http call to get user info
+                                val response = URL("https://jsonplaceholder.typicode.com/users/1").readText()
+                                println(response)
+                                val user = jsonLenient.decodeFromString<User>(response)
+                                println(user)
+
                                 isDialogOpen = false
                             }) {
                                 Text("Confirm")
@@ -238,6 +282,18 @@ fun App(context: FrameWindowScope) {
                         dismissButton = {
                             Button(onClick = {
                                 isDialogOpen = false
+
+                                // make a ktor http call
+                                scope.launch(Dispatchers.IO) {
+                                    val client = HttpClient(CIO) {
+                                        install(JsonFeature) {
+                                            serializer = KotlinxSerializer()
+                                        }
+                                    }
+                                    val response = client.get<User>("https://jsonplaceholder.typicode.com/users/1")
+                                    println(response)
+                                }
+
                             }) {
                                 Text("Dismiss")
                             }
@@ -448,11 +504,10 @@ data class Star(
 fun NightSkyCard() {
     Card(
         modifier = Modifier
-            .height(200.dp)
-            .fillMaxWidth(),
+            .fillMaxSize(),
         elevation = 2.dp,
         shape = RoundedCornerShape(20.dp),
-        backgroundColor = Color.Blue
+        backgroundColor = Color(0xFF111111)
     ) {
         val infiniteTransition = rememberInfiniteTransition()
         val scale by infiniteTransition.animateFloat(
@@ -467,23 +522,30 @@ fun NightSkyCard() {
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize()
         ) {
-            for (n in 0..20) {
+            for (n in 0..200) {
                 var size by remember { mutableStateOf(0) }
-                var start by remember { mutableStateOf(0) }
-                var top by remember { mutableStateOf(0) }
+                var start by remember { mutableStateOf(0f) }
+                var top by remember { mutableStateOf(0f) }
                 var timeOffset by remember { mutableStateOf(0f) }
 
                 LaunchedEffect(key1 = Unit) {
                     size = Random.nextInt(3, 5)
-                    start = Random.nextInt(0, maxWidth.value.toInt())
-                    top = Random.nextInt(10, maxHeight.value.toInt())
+                    start = Random.nextInt(0, maxWidth.value.toInt()).toFloat()
+                    top = Random.nextInt(10, maxHeight.value.toInt()).toFloat()
                     timeOffset = Random.nextFloat() * 5f
+
+                    while(true) {
+                        delay(2)
+                        start += Random.nextFloat() * 2 - 1 + (.25f*sin(timeOffset + (scale * 2 * PI)).toFloat())
+                        top += Random.nextFloat() * 2 - 1 + (.25f*cos(timeOffset + (scale * 2 * PI)).toFloat())
+                    }
                 }
                 Icon(
                     imageVector = Icons.Filled.Star,
                     contentDescription = null,
                     modifier = Modifier
-                        .padding(start = start.dp, top = top.dp)
+                        //.padding(start = start.dp, top = top.dp)
+                        .offset(x = start.dp, y = top.dp)
                         .size(size.dp)
                         .scale((Random.nextFloat() + 1f * sin(timeOffset + (scale * 2 * PI))).toFloat()),
                     tint = Color.White
@@ -512,6 +574,8 @@ fun main() = application {
 
     Window(
         onCloseRequest = ::exitApplication,
+        title = "Compose Desktop",
+        state = WindowState( size = DpSize(800.dp, 600.dp)),
     ) {
         App(this)
     }
