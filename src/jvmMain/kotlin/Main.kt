@@ -1,28 +1,40 @@
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.yield
 import java.awt.FileDialog
 import java.awt.Frame
 import javax.swing.WindowConstants
+import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.sin
+import kotlin.random.Random
 
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterialApi::class)
@@ -37,6 +49,55 @@ fun App(context: FrameWindowScope) {
 
     val state = MutableStateFlow(0)
     var isDialogOpen by remember { mutableStateOf(false) }
+
+    val infiniteTransition = rememberInfiniteTransition()
+    val offset2 by infiniteTransition.animateFloat(
+        initialValue = -30f,
+        targetValue = 30f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1000
+                //0.7f at 500
+            },
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    LaunchedEffect(isAnimationRunning) {
+        while (isAnimationRunning) {
+            offset = (sin(System.currentTimeMillis() / 1000.0) * 300).toInt() + 300
+//            yield()
+            delay(10)
+        }
+    }
+
+    @Composable
+    fun RotatingObject(rpm: Int) {
+        var rotation by remember { mutableStateOf(0f) }
+        val infiniteTransition = rememberInfiniteTransition()
+        val ticker by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = 1000,
+                    easing = LinearEasing
+                )
+            )
+        )
+
+        LaunchedEffect(ticker) {
+            rotation += 0.1f * rpm
+        }
+
+        Surface(
+            Modifier
+                .size(100.dp)
+//                .graphicsLayer { rotationZ = rotation},
+                .graphicsLayer { rotationZ = ticker},
+            color = Color.Blue
+        ) {}
+    }
 
     context.MenuBar {
         Menu("File") {
@@ -97,86 +158,337 @@ fun App(context: FrameWindowScope) {
         }
     }
 
-    LaunchedEffect(isAnimationRunning) {
-        while (isAnimationRunning) {
-            offset = (sin(System.currentTimeMillis() / 1000.0) * 300).toInt() + 300
-            yield()
+    MaterialTheme {
+        NightSkyCard()
+//        NightSkyCard2()
+    }
+
+
+    if (false) {
+        MaterialTheme {
+            RotatingObject(50)
         }
     }
 
-    MaterialTheme {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(color = Color.Gray)
-        ) {
-            Button(
+    if (false) {
+        MaterialTheme {
+            Column(
                 modifier = Modifier
-                    .offset { IntOffset(offset, 0) }
-                    .rotate((offset).toFloat()),
-                onClick = {
-                    text = "Hello, Desktop!"
-                }
+                    .fillMaxSize()
+                    .background(color = Color.Gray)
             ) {
-                Text(text)
-            }
+                RotatingObject(50)
 
-            Button(
-                onClick = {
-                    // read file : File(System.getProperty("compose.application.resources.dir"))
-                    fileContents = javaClass.getResource("/test.txt").readText()
-                },
-                modifier = Modifier.onHover { isHover ->
-                    println("isHovering: $isHover")
-                    isHovering = isHover
+                Button(
+                    modifier = Modifier
+                        .offset { IntOffset(offset.toInt(), 0) }
+                        .rotate((offset).toFloat()),
+                    onClick = {
+                        text = "Hello, Desktop!"
+                    }
+                ) {
+                    Text(text)
                 }
-            ) {
-                Text("Read file")
-            }
 
-            AnimatedContent(
-                isHovering,
-                transitionSpec =
+                Button(
+                    onClick = {
+                        // read file : File(System.getProperty("compose.application.resources.dir"))
+                        fileContents = javaClass.getResource("/test.txt").readText()
+                    },
+                    modifier = Modifier.onHover { isHover ->
+                        println("isHovering: $isHover")
+                        isHovering = isHover
+                    }
+                ) {
+                    Text("Read file")
+                }
+
+                AnimatedContent(
+                    isHovering,
+                    transitionSpec =
 //                {
 //                    fadeIn() + slideInVertically(animationSpec = tween(400),
 //                        initialOffsetY = { fullHeight -> fullHeight }) with
 //                    fadeOut(animationSpec = tween(200))
 //                }
-                {
-                    fadeIn(animationSpec = tween(1000)) with
-                        fadeOut(animationSpec = tween(1000))
+                    {
+                        fadeIn(animationSpec = tween(1000)) with
+                                fadeOut(animationSpec = tween(1000))
+                    }
+                ) { isHovering ->
+                    Text(
+                        fileContents,
+                        fontSize = if (isHovering) 50.sp else 30.sp,
+                        color = if (isHovering) Color.Red else Color.Black
+                    )
                 }
-            ) { isHovering ->
-                Text(
-                    fileContents,
-                    fontSize = if(isHovering) 50.sp else 30.sp,
-                    color = if (isHovering) Color.Red else Color.Black
+
+                if (isDialogOpen) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            isDialogOpen = false
+                        },
+                        confirmButton = {
+                            Button(onClick = {
+                                isDialogOpen = false
+                            }) {
+                                Text("Confirm")
+                            }
+                        },
+                        dismissButton = {
+                            Button(onClick = {
+                                isDialogOpen = false
+                            }) {
+                                Text("Dismiss")
+                            }
+                        },
+                        text = { Text("Hello text") })
+                }
+
+                Text(state.value.toString())
+
+                BoxWithConstraints(
+                    Modifier.padding(16.dp)
+                        .rotate((offset).toFloat() / 6f)
+                ) {
+                    val width = maxWidth
+                    val height = maxHeight
+
+                    Text("width: $width, height: $height")
+                    Box(
+                        Modifier
+                            .size(width / 2, height / 2)
+                            .offset(width / 4, height / 4)
+                            .background(Color.Red)
+                            .rotate((offset).toFloat() / 6f)
+                    ) {
+                        BoxWithConstraints {
+                            val width = maxWidth
+                            val height = maxHeight
+
+                            Text("width: $width, height: $height")
+                            Box(
+                                Modifier
+                                    .size(width / 2, height / 2)
+                                    .offset(width / 4, height / 4)
+                                    .background(Color.Green)
+                                    .rotate((offset).toFloat() / 6f)
+                            ) {
+                                BoxWithConstraints(Modifier.padding(16.dp)) {
+                                    val width = maxWidth
+                                    val height = maxHeight
+
+                                    Text("width: $width, height: $height")
+                                    Box(
+                                        Modifier
+                                            .size(width / 2, height / 2)
+                                            .offset(width / 4, height / 4)
+                                            .background(Color.Blue)
+                                            .rotate((offset).toFloat() / 6f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NightSkyCard2() {
+    Card(
+        modifier = Modifier
+            .height(200.dp)
+            .fillMaxWidth(),
+        elevation = 2.dp,
+        shape = RoundedCornerShape(20.dp),
+        backgroundColor = Color.Blue
+    ) {
+        val infiniteTransition = rememberInfiniteTransition()
+        val scale by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1500, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            )
+        )
+
+        val stars = remember { mutableStateListOf<Star>() }
+        var scaleX by remember { mutableStateOf(0f) }
+        var scaleY by remember { mutableStateOf(0f) }
+        var scaleZ by remember { mutableStateOf(.5f) }
+
+
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+//                .width(100.dp)
+//                .height(100.dp)
+                .background(Color.Blue)
+        ) {
+
+            SideEffect {
+                println("🔥 Recomposing")
+            }
+
+            LaunchedEffect(key1 = Unit) {
+                repeat(20) {
+                    stars.add(
+                        Star(
+                            Random.nextInt(2, 5).toFloat(),
+                            Random.nextInt(0, constraints.maxWidth).toFloat(),
+                            Random.nextInt(10, constraints.maxHeight).toFloat(),
+                            (Random.nextFloat() / 2)
+                        )
+                    )
+                }
+            }
+
+//            Box(
+//                modifier = Modifier
+//                    .offset(x = 50.dp, y = 50.dp)
+//                    .rotate(scale * 360f)
+//                    .background(Color.Black)
+//                    .width(100.dp)
+//                    .height(100.dp)
+//            )
+
+            Column {
+
+                Canvas(
+                    modifier = Modifier
+//                        .width(100.dp)
+//                        .height(100.dp)
+                        .fillMaxSize()
+                        .background(Color.Blue)
+                ) {
+                    if (stars.size == 20) {
+                        stars.forEach { star ->
+                            drawCircle(
+                                Color.White,
+                                center = Offset(star.xPos, star.yPos),
+                                radius = star.radius * (scale * abs(sin(scale + (star.timeOffset * 2 * PI)))).toFloat()
+                            )
+                        }
+                    }
+
+                    Matrix().apply {
+                        rotate(
+                            scale * 360f,
+                            pivot = Offset(
+                                center.x + ((scaleX-.5f) * 1000f),
+                                center.y + ((scaleY-.5f) * 1000f)
+                            )
+                        ) {
+                            drawRect(
+                                Color.Red,
+                                topLeft = center.plus(
+                                    Offset(
+                                        -(scaleZ*1000f/2) + ((scaleX-.5f) * 1000f),
+                                        -(scaleZ*1000f/2) + ((scaleY-.5f) * 1000f)
+                                    )
+                                ),
+                                size = Size(scaleZ * 1000f, scaleZ * 1000f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Column {
+                Slider(
+                    value = scaleX,
+                    onValueChange = {
+                        println("🔥 onValueChange: $it")
+                        scaleX = it
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                )
+
+                Slider(
+                    value = scaleY,
+                    onValueChange = {
+                        println("🔥 onValueChange: $it")
+                        scaleY = it
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                )
+
+                Slider(
+                    value = scaleZ,
+                    onValueChange = {
+                        println("🔥 onValueChange: $it")
+                        scaleZ = it
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
                 )
             }
+        }
+    }
+}
 
-            if(isDialogOpen) {
-                AlertDialog(
-                    onDismissRequest = {
-                        isDialogOpen = false
-                    },
-                    confirmButton = {
-                        Button(onClick = {
-                            isDialogOpen = false
-                        }) {
-                            Text("Confirm")
-                        }
-                    },
-                    dismissButton = {
-                        Button(onClick = {
-                            isDialogOpen = false
-                        }) {
-                            Text("Dismiss")
-                        }
-                    },
-                    text = { Text("Hello text") })
+@Immutable
+data class Star(
+    val radius: Float,
+    val xPos: Float,
+    val yPos: Float,
+    val timeOffset: Float
+)
+
+@Composable
+fun NightSkyCard() {
+    Card(
+        modifier = Modifier
+            .height(200.dp)
+            .fillMaxWidth(),
+        elevation = 2.dp,
+        shape = RoundedCornerShape(20.dp),
+        backgroundColor = Color.Blue
+    ) {
+        val infiniteTransition = rememberInfiniteTransition()
+        val scale by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 0f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(6000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            )
+        )
+
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            for (n in 0..20) {
+                var size by remember { mutableStateOf(0) }
+                var start by remember { mutableStateOf(0) }
+                var top by remember { mutableStateOf(0) }
+                var timeOffset by remember { mutableStateOf(0f) }
+
+                LaunchedEffect(key1 = Unit) {
+                    size = Random.nextInt(3, 5)
+                    start = Random.nextInt(0, maxWidth.value.toInt())
+                    top = Random.nextInt(10, maxHeight.value.toInt())
+                    timeOffset = Random.nextFloat() * 5f
+                }
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(start = start.dp, top = top.dp)
+                        .size(size.dp)
+                        .scale((Random.nextFloat() + 1f * sin(timeOffset + (scale * 2 * PI))).toFloat()),
+                    tint = Color.White
+                )
             }
-
-            Text(state.value.toString())
         }
     }
 }

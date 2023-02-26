@@ -40,6 +40,16 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "StopwatchComposeDesktop"
             packageVersion = "1.0.0"
+            version = "0.1-SNAPSHOT"
+            description = "Compose Example App"
+            copyright = "© 2020 My Name. All rights reserved."
+            vendor = "Example vendor"
+//            licenseFile.set(project.file("LICENSE.txt"))
+
+            macOS {
+                iconFile.set(project.file("src/jvmMain/resources/stopwatch.icns"))
+                dockName = "Stopwatch"
+            }
         }
     }
 }
