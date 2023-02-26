@@ -33,12 +33,10 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.features.json.*
 import io.ktor.client.features.json.serializer.*
 import io.ktor.client.request.*
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -352,12 +350,12 @@ fun App(context: FrameWindowScope) {
     }
 }
 
+// Uses canvas to draw - smoothest animation
 @Composable
 fun NightSkyCard2() {
     Card(
         modifier = Modifier
-            .height(200.dp)
-            .fillMaxWidth(),
+            .fillMaxSize(),
         elevation = 2.dp,
         shape = RoundedCornerShape(20.dp),
         backgroundColor = Color.Blue
@@ -397,7 +395,7 @@ fun NightSkyCard2() {
                             Random.nextInt(2, 5).toFloat(),
                             Random.nextInt(0, constraints.maxWidth).toFloat(),
                             Random.nextInt(10, constraints.maxHeight).toFloat(),
-                            (Random.nextFloat() / 2)
+                            Random.nextFloat() - .5f
                         )
                     )
                 }
@@ -426,7 +424,7 @@ fun NightSkyCard2() {
                             drawCircle(
                                 Color.White,
                                 center = Offset(star.xPos, star.yPos),
-                                radius = star.radius * (scale * abs(sin(scale + (star.timeOffset * 2 * PI)))).toFloat()
+                                radius = star.radius * (scale * abs(sin((star.timeOffset + scale) * 4 * PI)).toFloat())
                             )
                         }
                     }
@@ -500,6 +498,7 @@ data class Star(
     val timeOffset: Float
 )
 
+// Uses individual launchedEffects to draw - Stutters at times, smoothest with the animateFloat
 @Composable
 fun NightSkyCard() {
     Card(
@@ -519,20 +518,40 @@ fun NightSkyCard() {
             )
         )
 
+        // Smoothest with the animateFloat, but still stutters every couple seconds
+        val timeOffset by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(800, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            )
+        )
+
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize()
         ) {
+            var timeOffset1 by remember { mutableStateOf(0f) }
+
+            // Stutters after a while, starts to slow down after a while
+            LaunchedEffect(key1 = Unit) {
+                while(true) {
+                    delay(1)
+//                    yield()
+                    timeOffset1 += .03f
+//                    timeOffset = Random.nextFloat() * 5f
+                }
+            }
+
             for (n in 0..200) {
                 var size by remember { mutableStateOf(0) }
                 var start by remember { mutableStateOf(0f) }
                 var top by remember { mutableStateOf(0f) }
-                var timeOffset by remember { mutableStateOf(0f) }
 
                 LaunchedEffect(key1 = Unit) {
                     size = Random.nextInt(3, 5)
                     start = Random.nextInt(0, maxWidth.value.toInt()).toFloat()
                     top = Random.nextInt(10, maxHeight.value.toInt()).toFloat()
-                    timeOffset = Random.nextFloat() * 5f
 
                     while(true) {
                         delay(2)
@@ -547,10 +566,32 @@ fun NightSkyCard() {
                         //.padding(start = start.dp, top = top.dp)
                         .offset(x = start.dp, y = top.dp)
                         .size(size.dp)
-                        .scale((Random.nextFloat() + 1f * sin(timeOffset + (scale * 2 * PI))).toFloat()),
+                        .scale((Random.nextFloat() + size * sin(timeOffset + (scale * 2 * PI))).toFloat()),
                     tint = Color.White
                 )
             }
+
+            Box(
+                modifier = Modifier
+                    .offset(x = 200.dp, y = 200.dp)
+                    .rotate(360 * timeOffset)
+                    .background(Color.White)
+                    .size(200.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .offset(x = 250.dp, y = 250.dp)
+                    .rotate(360 * timeOffset)
+                    .background(Color.Black)
+                    .size(100.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .offset(x = 295.dp, y = 295.dp)
+                    .rotate(360 * timeOffset)
+                    .background(Color.White)
+                    .size(10.dp)
+            )
         }
     }
 }
